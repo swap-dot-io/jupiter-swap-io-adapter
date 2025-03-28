@@ -1,13 +1,15 @@
-
 use anyhow::Result;
 use jupiter_amm_interface::{
-    AccountMap, Amm, AmmContext, KeyedAccount, Quote, QuoteParams, Swap, SwapAndAccountMetas, SwapParams
+    AccountMap, Amm, AmmContext, KeyedAccount, Quote, QuoteParams, Swap, SwapAndAccountMetas,
+    SwapParams,
 };
 use solana_sdk::{account::Account, pubkey::Pubkey};
 // use swap_io_clmm::states::{AmmConfig, TickArrayBitmapExtension, TickArrayState};
-use swap_io_clmm_rust_sdk::{instruction::InstructionBuilder, pool::{PoolManager, NEIGHBORHOOD_SIZE}, quote::QuoteCalculator};
-
-
+use swap_io_clmm_rust_sdk::{
+    instruction::InstructionBuilder,
+    pool::{NEIGHBORHOOD_SIZE, PoolManager},
+    quote::QuoteCalculator,
+};
 
 #[derive(Clone)]
 pub struct SwapIoClmmAdapter {
@@ -15,13 +17,15 @@ pub struct SwapIoClmmAdapter {
 }
 
 impl SwapIoClmmAdapter {
-    fn new(pool_key: Pubkey, pool_state_account: &Account, program_id: Pubkey, epoch: u64) -> Result<Self> {
+    fn new(
+        pool_key: Pubkey,
+        pool_state_account: &Account,
+        program_id: Pubkey,
+        epoch: u64,
+    ) -> Result<Self> {
         let pool_manager = PoolManager::new(epoch, pool_key, program_id, pool_state_account)?;
 
-        Ok(
-        Self {
-            pool_manager,
-        })
+        Ok(Self { pool_manager })
     }
 
     pub fn get_up_tick_array_keys(&self) -> &Vec<Pubkey> {
@@ -35,7 +39,11 @@ impl SwapIoClmmAdapter {
         &self.pool_manager
     }
 
-    fn get_tick_arrays_accounts(&self, tick_array_keys: &Vec<Pubkey>, account_map: &AccountMap) -> Result<Vec<Account>> {
+    fn get_tick_arrays_accounts(
+        &self,
+        tick_array_keys: &Vec<Pubkey>,
+        account_map: &AccountMap,
+    ) -> Result<Vec<Account>> {
         let mut tick_arrays = vec![];
         for key in tick_array_keys.iter() {
             let tick_array_account = account_map
@@ -116,10 +124,21 @@ where
         let tickarray_bitmap_extension_account = account_map
             .get(&self.pool_manager.tick_array_bitmap_extension())
             .ok_or_else(|| anyhow::anyhow!("TickArrayBitmapExtension account not found"))?;
-        
-        let up_ticks_accounts = self.get_tick_arrays_accounts(&self.pool_manager.up_tick_array_keys, account_map)?;
-        let down_ticks_accounts = self.get_tick_arrays_accounts(&self.pool_manager.down_tick_array_keys, account_map)?;
-        self.pool_manager.update(vec![amm_config_account, mint0_account, mint1_data, tickarray_bitmap_extension_account], up_ticks_accounts, down_ticks_accounts)
+
+        let up_ticks_accounts =
+            self.get_tick_arrays_accounts(&self.pool_manager.up_tick_array_keys, account_map)?;
+        let down_ticks_accounts =
+            self.get_tick_arrays_accounts(&self.pool_manager.down_tick_array_keys, account_map)?;
+        self.pool_manager.update(
+            vec![
+                amm_config_account,
+                mint0_account,
+                mint1_data,
+                tickarray_bitmap_extension_account,
+            ],
+            up_ticks_accounts,
+            down_ticks_accounts,
+        )
     }
 
     fn quote(&self, quote_params: &QuoteParams) -> Result<Quote> {
@@ -128,7 +147,8 @@ where
             quote_params.output_mint,
             quote_params.swap_mode == jupiter_amm_interface::SwapMode::ExactIn,
             quote_params.amount,
-            &self.pool_manager)?;
+            &self.pool_manager,
+        )?;
         Ok(Quote {
             fee_pct: quote.fee_pct,
             in_amount: quote.in_amount,
@@ -137,11 +157,16 @@ where
             fee_mint: quote.fee_mint,
             ..Quote::default()
         })
-
     }
 
     fn get_swap_and_account_metas(&self, swap_params: &SwapParams) -> Result<SwapAndAccountMetas> {
-        let instruction = InstructionBuilder::build_swap_instruction(&self.pool_manager, swap_params.source_mint, swap_params.destination_mint, swap_params.source_token_account, swap_params.destination_token_account)?;
+        let instruction = InstructionBuilder::build_swap_instruction(
+            &self.pool_manager,
+            swap_params.source_mint,
+            swap_params.destination_mint,
+            swap_params.source_token_account,
+            swap_params.destination_token_account,
+        )?;
         let account_metas = instruction.accounts;
         Ok(SwapAndAccountMetas {
             swap: Swap::RaydiumClmmV2,

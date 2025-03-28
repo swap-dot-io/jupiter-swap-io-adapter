@@ -89,3 +89,4 @@ This workflow ensures that the adapter always operates with the most up-to-date 
 ## License
 
 [MIT](LICENSE)
+
